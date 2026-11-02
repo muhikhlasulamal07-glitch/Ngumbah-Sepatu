@@ -24,15 +24,25 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navMenu">
-                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
                     <li class="nav-item"><a class="nav-link" href="index.html">Beranda</a></li>
                     <li class="nav-item"><a class="nav-link" href="layanan.html">Layanan</a></li>
                     <li class="nav-item"><a class="nav-link" href="pesanan-saya.html">Pesanan Saya</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="profil.html">Profil</a></li>
-                    <li class="nav-item"><a class="nav-link" href="index.html#cara-kerja">Cara Kerja</a></li>
-                    <li class="nav-item"><a class="nav-link" href="index.html#tentang">Tentang Kami</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle active" href="#" id="dropdownLainnya" role="button" data-bs-toggle="dropdown" aria-expanded="false">Lainnya</a>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="dropdownLainnya">
+                            <li><a class="dropdown-item" href="index.html#cara-kerja">Cara Kerja</a></li>
+                            <li><a class="dropdown-item" href="index.html#tentang">Tentang Kami</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item active" href="profil.html">Profil</a></li>
+                        </ul>
+                    </li>
                 </ul>
-                <a href="layanan.html" class="btn btn-orange mt-3 mt-lg-0">Pesan Sekarang</a>
+                <div class="d-flex flex-column flex-lg-row gap-2 mt-3 mt-lg-0">
+                    <a href="login.html" class="btn btn-outline-orange" id="btnNavLogin">Masuk</a>
+                    <a href="register.html" class="btn btn-orange" id="btnNavRegister">Daftar</a>
+                    <button type="button" class="btn btn-outline-orange" id="btnLogout" style="display: none;">Logout</button>
+                </div>
             </div>
         </div>
     </nav>

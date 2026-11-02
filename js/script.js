@@ -67,6 +67,197 @@ $(document).ready(function () {
         }
     });
 
+        // ---------- Sistem Autentikasi (Prototype - simulasi login pelanggan) ----------
+    var KEY_AKUN = 'akunNgumbahSepatu';
+    var KEY_SESI = 'sesiNgumbahSepatu';
+
+    // Demo hash sederhana (bukan keamanan, hanya simulasi untuk prototype)
+    function hashPasswordSimulasi(password) {
+        var s = String(password || '');
+        var h = 5381;
+        for (var i = 0; i < s.length; i++) {
+            h = ((h * 33) + s.charCodeAt(i)) % 2147483647;
+        }
+        return 'simulasi-' + h.toString(36);
+    }
+
+    function bacaDaftarAkun() {
+        var list = [];
+        var raw = localStorage.getItem(KEY_AKUN);
+        if (raw) { try { list = JSON.parse(raw); } catch (e) { list = []; } }
+        if (!Array.isArray(list)) { list = []; }
+        return list;
+    }
+
+    function simpanDaftarAkun(list) { localStorage.setItem(KEY_AKUN, JSON.stringify(list)); }
+
+    function dapatSesi() {
+        var raw = localStorage.getItem(KEY_SESI);
+        if (!raw) { return null; }
+        try { return JSON.parse(raw); } catch (e) { return null; }
+    }
+
+    function akunAktif() {
+        var sesi = dapatSesi();
+        if (!sesi || !sesi.email) { return null; }
+        var list = bacaDaftarAkun();
+        var emailLower = String(sesi.email).toLowerCase();
+        for (var i = 0; i < list.length; i++) {
+            if (list[i] && String(list[i].email || '').toLowerCase() === emailLower) {
+                return { email: list[i].email, nama: list[i].nama || sesi.nama || '', whatsapp: list[i].whatsapp || '' };
+            }
+        }
+        return null;
+    }
+
+    function isLoggedIn() { return akunAktif() !== null; }
+
+    function setSesiLogin(email, nama) {
+        localStorage.setItem(KEY_SESI, JSON.stringify({ email: email, nama: nama, loginAt: Date.now() }));
+    }
+
+    function hapusSesiLogin() { localStorage.removeItem(KEY_SESI); }
+
+    function loginUser(email, password) {
+        var list = bacaDaftarAkun();
+        var emailLower = String(email || '').trim().toLowerCase();
+        var akun = null;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i] && String(list[i].email || '').toLowerCase() === emailLower) { akun = list[i]; break; }
+        }
+        if (!akun || akun.passwordHash !== hashPasswordSimulasi(password)) {
+            return { sukses: false, pesan: 'Email atau password salah.' };
+        }
+        setSesiLogin(akun.email, akun.nama);
+        return { sukses: true, akun: akun };
+    }
+
+    function logoutUser() { hapusSesiLogin(); }
+
+    function cekEmailTerdaftar(email) {
+        var emailLower = String(email || '').trim().toLowerCase();
+        var list = bacaDaftarAkun();
+        for (var i = 0; i < list.length; i++) {
+            if (list[i] && String(list[i].email || '').toLowerCase() === emailLower) { return true; }
+        }
+        return false;
+    }
+
+    function daftarAkunBaru(nama, email, whatsapp, password) {
+        var list = bacaDaftarAkun();
+        list.push({
+            nama: nama,
+            email: email,
+            whatsapp: whatsapp,
+            passwordHash: hashPasswordSimulasi(password),
+            createdAt: Date.now()
+        });
+        simpanDaftarAkun(list);
+    }
+
+    // Seed akun demo (prototype) agar bisa langsung mencoba login
+    if (bacaDaftarAkun().length === 0) {
+        simpanDaftarAkun([
+            { nama: 'Demo Pelanggan', whatsapp: '081234567890', email: 'demo@ngumbahsepatu.id', passwordHash: hashPasswordSimulasi('demo123'), createdAt: Date.now() }
+        ]);
+    }
+
+    // ---------- Integrasi navbar dengan kondisi login ----------
+    function perbaruiNavbarAuth() {
+        var loginAktif = isLoggedIn();
+        var $btnLogin = $('#btnNavLogin');
+        var $btnRegister = $('#btnNavRegister');
+        var $btnLogout = $('#btnLogout');
+        var $linkPesanan = $('a[href="pesanan-saya.html"]');
+        var $linkProfil = $('a[href="profil.html"]');
+
+        if (loginAktif) {
+            if ($linkPesanan.length) { $linkPesanan.attr('href', 'pesanan-saya.html'); }
+            if ($linkProfil.length) { $linkProfil.attr('href', 'profil.html'); }
+            if ($btnLogin) { $btnLogin.hide(); }
+            if ($btnRegister) { $btnRegister.hide(); }
+            if ($btnLogout) { $btnLogout.show(); }
+        } else {
+            if ($linkPesanan.length) { $linkPesanan.attr('href', 'login.html'); }
+            if ($linkProfil.length) { $linkProfil.attr('href', 'login.html'); }
+            if ($btnLogin) { $btnLogin.show(); }
+            if ($btnRegister) { $btnRegister.show(); }
+            if ($btnLogout) { $btnLogout.hide(); }
+        }
+    }
+
+    $('#btnLogout').on('click', function () {
+        logoutUser();
+        window.location.href = 'index.html';
+    });
+
+    // Perbarui navbar saat status login diperbarui
+    perbaruiNavbarAuth();
+
+    // ---------- Halaman Login: validasi & proses login ----------
+    if ($('#formLogin').length) {
+        var paramsAuth = new URLSearchParams(window.location.search);
+        if (paramsAuth.get('registered')) {
+            $('#loginSuccess').removeClass('d-none').text('Registrasi berhasil! Silakan login dengan email Anda.');
+        }
+
+        $('#formLogin').on('submit', function (e) {
+            e.preventDefault();
+            var $email = $('#loginEmail');
+            var $password = $('#loginPassword');
+            $('#formLogin .is-invalid').removeClass('is-invalid');
+            var ok = true;
+
+            function kosong($el) { return $.trim(String($el.val() || '')).length === 0; }
+
+            if (kosong($email)) { $('#loginEmail').addClass('is-invalid'); ok = false; }
+            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test($.trim($email.val()))) { $('#loginEmail').addClass('is-invalid'); ok = false; }
+            if (kosong($password)) { $('#loginPassword').addClass('is-invalid'); ok = false; }
+            if (!ok) { return; }
+
+            var hasil = loginUser($email.val(), $password.val());
+            if (hasil.sukses) {
+                window.location.href = 'index.html';
+                return;
+            }
+            $('#loginError').text(hasil.pesan || 'Email atau password salah.').removeClass('d-none');
+            $('#loginPassword').addClass('is-invalid');
+        });
+    }
+
+    // ---------- Halaman Register: validasi & simpan akun ----------
+    if ($('#formRegister').length) {
+        $('#formRegister').on('submit', function (e) {
+            e.preventDefault();
+            var $nama = $('#regNama');
+            var $email = $('#regEmail');
+            var $whatsapp = $('#regWhatsapp');
+            var $password = $('#regPassword');
+            var $konfirmasi = $('#regKonfirmasi');
+            $('#formRegister .is-invalid').removeClass('is-invalid');
+            var ok = true;
+
+            function kosong($el) { return $.trim(String($el.val() || '')).length === 0; }
+
+            if (kosong($nama) || $.trim($nama.val()).length < 3) { $('#regNama').addClass('is-invalid'); ok = false; }
+            if (kosong($email) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test($.trim($email.val()))) { $('#regEmail').addClass('is-invalid'); ok = false; }
+            if (kosong($whatsapp) || $.trim(String($whatsapp.val()).replace(/[^0-9]/g, '')).length < 9) { $('#regWhatsapp').addClass('is-invalid'); ok = false; }
+            if (kosong($password) || String($password.val()).length < 6) { $('#regPassword').addClass('is-invalid'); ok = false; }
+            if (kosong($konfirmasi) || String($.trim($konfirmasi.val())) !== String($.trim($password.val()))) { $('#regKonfirmasi').addClass('is-invalid'); ok = false; }
+
+            if (!ok) { return; }
+
+            if (cekEmailTerdaftar($.trim($email.val()))) {
+                $('#regError').text('Email sudah terdaftar. Silakan gunakan email lain atau login.').removeClass('d-none');
+                $('#regEmail').addClass('is-invalid');
+                return;
+            }
+
+            daftarAkunBaru($.trim($nama.val()), $.trim($email.val()), $.trim($whatsapp.val()), $password.val());
+            window.location.href = 'login.html?registered=1';
+        });
+    }
+
     // ---------- Halaman Pemesanan: auto-select layanan dari URL ----------
     var params = new URLSearchParams(window.location.search);
     var layananIdFromUrl = params.get('layanan');
@@ -318,6 +509,20 @@ $(document).ready(function () {
                 email: $('#profilEmail').val()
             };
             localStorage.setItem('profilNgumbahSepatu', JSON.stringify(profilBaru));
+
+            // Sinkronkan data profil dengan akun yang sedang login (prototype)
+            if (dapatSesi() && profilBaru.email) {
+                var listAkun = bacaDaftarAkun();
+                var emailAkun = String(profilBaru.email).toLowerCase();
+                for (var k = 0; k < listAkun.length; k++) {
+                    if (listAkun[k] && String(listAkun[k].email || '').toLowerCase() === emailAkun) {
+                        listAkun[k].nama = profilBaru.nama;
+                        listAkun[k].whatsapp = profilBaru.whatsapp;
+                        simpanDaftarAkun(listAkun);
+                        break;
+                    }
+                }
+            }
 
             $('#profilDisplayNama').text(profilBaru.nama);
             $('#profilDisplayWhatsapp').text(profilBaru.whatsapp);
